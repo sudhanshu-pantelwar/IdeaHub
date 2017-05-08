@@ -130,8 +130,9 @@ export class Login {
 
 linkedinCall(){
   // generic callback functions to make this example simpler
-var onError = function(e) { console.error('LinkedIn Error: ', e); }
-var onSuccess = function(r) { console.log('LinkedIn Response: ', r); }
+// var onError = function(e) { console.error('LinkedIn Error: ', e); }
+// var onSuccess = function(r) { console.log('LinkedIn Response: ', r.emailAddress); 
+// }
 
 // logging in with all scopes
 // you should just ask for what you need
@@ -154,34 +155,85 @@ var onSuccess = function(r) { console.log('LinkedIn Response: ', r); }
 //   }
 // });
 
-var scopes = ['r_basicprofile', 'r_emailaddress', 'rw_company_admin', 'w_share'];
-    cordova.plugins.LinkedIn.login(scopes, true, function() {
+// var scopes = ['r_basicprofile', 'r_emailaddress', 'rw_company_admin', 'w_share'];
+//     cordova.plugins.LinkedIn.login(scopes, true, function() {
 
-  // get connections
-  cordova.plugins.LinkedIn.getRequest('people/~', onSuccess, onError);
+//   // get connections
+//   cordova.plugins.LinkedIn.getRequest('people/~:(id,num-connections,picture-url,email-address)', onSuccess, onError);
   
-  // share something on profile
-  // see more info at https://developer.linkedin.com/docs/share-on-linkedin
-  var payload = {
-    comment: 'Hello world!',
-    visibility: {
-      code: 'anyone'
+//   // share something on profile
+//   console.log("dfadfadfadsfadsf",onSuccess);
+//   // see more info at https://developer.linkedin.com/docs/share-on-linkedin
+//   var payload = {
+//     comment: 'Hello world!',
+//     visibility: {
+//       code: 'anyone'
+//     }
+//   };
+//   cordova.plugins.LinkedIn.postRequest('~/shares', payload, onSuccess, onError);
+
+// }, onError);
+  this.linkedin.hasActiveSession().then((active) => {
+  
+    if(active){
+      console.log('has active session?', active);
+      this.linkedin.login(['r_basicprofile', 'r_emailaddress', 'rw_company_admin', 'w_share'], true)
+      .then(() => {
+      console.log('Logged in!');
+      this.linkedin.getRequest('people/~:(id,num-connections,picture-url,email-address,first-name,last-name)').then((value) => {
+        console.log(JSON.stringify(value));
+        let email = value.emailAddress;
+        let firstname = value.firstName;
+        let lastname = value.lastName;
+        this.backend.already(email).subscribe(
+        data => { console.log("loginData", data);
+                this.response = data;
+                this.response = this.response._body;
+                this.response = JSON.parse(this.response);
+                if(this.response.RtnCode == 0){
+                  
+                  this.navCtrl.setRoot(Register, {"email" : email, "firstname": firstname, "lastname": lastname});
+                }
+                if(this.response.RtnCode == -1){
+                  alert("Already registered");
+                  let password = localStorage.getItem('password');
+                  this.geolocation.getCurrentPosition().then((resp) => {
+                      this.latitude = resp.coords.latitude;
+                      this.longitude = resp.coords.longitude;
+                      this.backend.loadingSnipper('Please wait...');
+                      this.backend.socialRegister(email).subscribe(
+                      data => { console.log("loginData", data);
+                                this.response = data;
+                                this.response = this.response._body;
+                                this.response = JSON.parse(this.response);
+                                if(this.response.Message == "An error has occurred."){
+                                  alert("error occured");
+                                }
+                                else{
+                                  // alert(this.response);
+                                  localStorage.setItem('email', this.response.ReturnData.Email);
+                                  localStorage.setItem('password', this.response.ReturnData.Password);
+                                  localStorage.setItem('firstname', this.response.ReturnData.FirstName);
+                                  localStorage.setItem('lastname', this.response.ReturnData.LastName);
+                                  localStorage.setItem('branch', this.response.ReturnData.Branch);
+                                  localStorage.setItem('specialization', this.response.ReturnData.Specialization);
+                                  localStorage.setItem('collegename', this.response.ReturnData.CollegeName);
+                                  localStorage.setItem('mobilenumber', this.response.ReturnData.MobileNumber);
+                                  this.navCtrl.setRoot(HomePage);
+                                }
+                                this.backend.closeLoading();
+                          }) 
+                      }).catch((error) => {
+                        alert('Error getting location '+error);
+                      });
+                }
+              })
+          })
+      
+       })
+      .catch(e => console.log('Error logging in', e));
     }
-  };
-  cordova.plugins.LinkedIn.postRequest('~/shares', payload, onSuccess, onError);
-
-}, onError);
-  //  this.linkedin.hasActiveSession().then((active) => {;
-  
-  //   if(active){
-  //     console.log('has active session?', active)
-  //   }
-  //   else{
-  //     this.linkedin.login(['r_basicprofile', 'r_emailaddress', 'rw_company_admin', 'w_share'], true)
-  //     .then(() => console.log('Logged in!'))
-  //     .catch(e => console.log('Error logging in', e));
-  //   }
-  //   }).catch(e => console.log("error active session", e));
+    }).catch(e => console.log("error active session", e));
 
     // login
     // const scopes = ['r_basicprofile', 'r_emailaddress', 'rw_company_admin', 'w_share'];
